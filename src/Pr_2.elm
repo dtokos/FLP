@@ -49,13 +49,14 @@ fromListChar list =
             
 fromList: (a -> String) -> List a -> String
 fromList fnc list = 
-    let fromL f l =
-        case l of
-            [] -> ""
-            first :: rest ->
-                f first ++
-                if rest == [] then "" else ", " ++
-                fromL f rest
+    let
+        fromL f l =
+            case l of
+                [] -> ""
+                first :: rest ->
+                    f first ++
+                    if rest == [] then "" else ", " ++
+                    fromL f rest
     in
         "[" ++ fromL fnc list ++ "]"
         
