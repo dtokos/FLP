@@ -8,7 +8,6 @@
 # What is the smallest positive number that is evenly divisible by all of the numbers from 1 to 20?
 
 from functools import reduce
-from operator import mul
 from math import ceil
 
 def main():
@@ -17,10 +16,6 @@ def main():
 
 def smallestMultiple(n):
 	return int(reduce(lambda a, b: a * b / gcf(a, b), range(n, 3, -1), 2))
-
-def lcm(numbers):
-	if len(numbers) == 2:
-		return numbers[0] * numbers[1] / gcf(numbers)
 
 def gcf(a, b):
 	greater = max(a, b)

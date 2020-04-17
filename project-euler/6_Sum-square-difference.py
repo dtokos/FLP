@@ -13,7 +13,6 @@
 
 from functools import reduce
 from operator import add
-from math import ceil
 
 def main():
 	print(sumSquareDifference(10))
