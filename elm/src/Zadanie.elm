@@ -27,7 +27,8 @@ type Message =
     Insert |
     Show |
     ShowRep |
-    IsIn
+    IsIn |
+    Value
 
 init: Model
 init = (clearState "", [("foo", Node "a" "1" EmptyNode (Node "d" "2" (Node "c" "3" EmptyNode EmptyNode) EmptyNode))])
@@ -67,7 +68,20 @@ update message (state, tables) =
             else let result = findTable state.table tables
                 in case result of
                     Nothing -> tableNotFound state tables
-                    Just t -> (clearState ("Kľúč '" ++ state.key ++ "' sa v tabuľke " ++ (if isIn state.key t then "nachádza" else "nenachádza")), tables)
+                    Just t -> (clearState ("Kľúč '" ++ state.key ++ "' sa v tabuľke " ++ state.table ++ " " ++ (if isIn state.key t then "nachádza" else "nenachádza")), tables)
+        Value ->
+            if validate ["table", "key"] state == False then missingArguments "názov tabuľky, kľúč" state tables
+            else let result = findTable state.table tables
+                in case result of
+                    Nothing -> tableNotFound state tables
+                    Just t ->
+                        let v = valueForKey state.key t
+                        in case v of
+                            Nothing -> (clearState ("Kľúč '" ++ state.key ++ "' sa v tabuľke " ++ state.table ++ " nenachádza"), tables)
+                            Just val -> (clearState ("Kľúč '" ++ state.key ++ "' má v tabuľke " ++ state.table ++ " hodnotu: " ++ val), tables)
+
+
+
 
 
 clearState: String -> State
@@ -121,6 +135,7 @@ view (state, tables) =
         button [onClick Show] [text "Zobraziť"],
         button [onClick ShowRep] [text "Zobraziť reprezentáciu"],
         button [onClick IsIn] [text "Je v"],
+        button [onClick Value] [text "Hodnota"],
         br [] [],
         br [] [],
         div [] [text <| "Dostupné tabuľky: " ++ viewTables tables],
@@ -199,6 +214,17 @@ showRep (name, values) =
 isIn: String -> Table -> Bool
 isIn key (name, values) =
     bstFind key values /= Nothing
+
+valueForKey: String -> Table -> Maybe String
+valueForKey key (name, values) =
+    let n = bstFind key values
+    in case n of
+        Nothing -> Nothing
+        Just t ->
+            case t of
+                EmptyNode -> Nothing
+                Node k v lc rc -> Just v
+
 
 
 
