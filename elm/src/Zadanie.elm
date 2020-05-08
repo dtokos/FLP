@@ -26,7 +26,8 @@ type Message =
     NewOrEmpty |
     Insert |
     Show |
-    ShowRep
+    ShowRep |
+    IsIn
 
 init: Model
 init = (clearState "", [("foo", Node "a" "1" EmptyNode (Node "d" "2" (Node "c" "3" EmptyNode EmptyNode) EmptyNode))])
@@ -61,6 +62,13 @@ update message (state, tables) =
                 in case result of
                     Nothing -> tableNotFound state tables
                     Just t -> (clearState ("Štruktúra tabuľky " ++ state.table ++ ": " ++ showRep t), tables)
+        IsIn ->
+            if validate ["table", "key"] state == False then missingArguments "názov tabuľky, kľúč" state tables
+            else let result = findTable state.table tables
+                in case result of
+                    Nothing -> tableNotFound state tables
+                    Just t -> (clearState ("Kľúč '" ++ state.key ++ "' sa v tabuľke " ++ (if isIn state.key t then "nachádza" else "nenachádza")), tables)
+
 
 clearState: String -> State
 clearState out =
@@ -112,6 +120,7 @@ view (state, tables) =
         button [onClick Insert] [text "Vložiť"],
         button [onClick Show] [text "Zobraziť"],
         button [onClick ShowRep] [text "Zobraziť reprezentáciu"],
+        button [onClick IsIn] [text "Je v"],
         br [] [],
         br [] [],
         div [] [text <| "Dostupné tabuľky: " ++ viewTables tables],
@@ -185,9 +194,11 @@ showRep (name, values) =
                     "Node \"" ++ key ++ "\" \"" ++ value ++ "\" " ++
                     (if lc == EmptyNode then showTree lc else "(" ++ showTree lc ++ ")") ++ " " ++
                     (if rc == EmptyNode then showTree rc else "(" ++ showTree rc ++ ")")
-
     in "(\"" ++ name ++ "\", " ++ showTree values ++ ")" 
 
+isIn: String -> Table -> Bool
+isIn key (name, values) =
+    bstFind key values /= Nothing
 
 
 
@@ -207,4 +218,13 @@ bstReduce fnc acc tree =
         EmptyNode -> fnc EmptyNode acc
         Node key value lc rc ->
             bstReduce fnc (bstReduce fnc (fnc (Node key value lc rc) acc) lc) rc
+
+bstFind: String -> BST String -> Maybe (BST String)
+bstFind key tree =
+    case tree of
+        EmptyNode -> Nothing
+        Node k v lc rc ->
+            if key == k then Just (Node k v lc rc)
+            else if key < k then bstFind key lc
+            else bstFind key rc
 
