@@ -29,7 +29,7 @@ type Message =
     ShowRep
 
 init: Model
-init = (clearState "", [("foo", Node "a" "42" EmptyNode EmptyNode)])
+init = (clearState "", [("foo", Node "a" "1" EmptyNode (Node "d" "2" (Node "c" "3" EmptyNode EmptyNode) EmptyNode))])
 
 update: Message -> Model -> Model
 update message (state, tables) =
@@ -42,25 +42,25 @@ update message (state, tables) =
             ({state | value = v, output = ""}, tables)
 
         NewOrEmpty ->
-            if state.table == "" then missingArguments "názov tabuľky" state tables
+            if validate ["table"] state == False then missingArguments "názov tabuľky" state tables
             else if (findTable state.table tables) == Nothing then (clearState ("Vytvorená nová tabuľka: " ++ state.table), newOrEmpty state.table tables)
             else (clearState ("Tabuľka " ++ state.table ++ " bola vyprázdnená"), newOrEmpty state.table tables)
         Insert ->
-            if state.table == "" || state.key == "" || state.value == "" then missingArguments "názov tabuľky, kľúč a hodnotu" state tables
+            if validate ["table", "key", "value"] state == False then missingArguments "názov tabuľky, kľúč a hodnotu" state tables
             else if (findTable state.table tables) == Nothing then tableNotFound state tables
             else (clearState ("Vložená hodnota '" ++ state.value ++ "' pod kľučom '" ++ state.key ++ "' do tabuľky " ++ state.table), insert state.table state.key state.value tables)
         Show ->
-            if state.table == "" then missingArguments "názov tabuľky" state tables
+            if validate ["table"] state == False then missingArguments "názov tabuľky" state tables
             else let result = findTable state.table tables
                 in case result of
                     Nothing -> tableNotFound state tables
-                    Just t -> (keepState state ("Tabuľka " ++ state.table ++ ": " ++ show t), tables)
+                    Just t -> (clearState ("Tabuľka " ++ state.table ++ ": " ++ show t), tables)
         ShowRep ->
-            if state.table == "" then missingArguments "názov tabuľky" state tables
+            if validate ["table"] state == False then missingArguments "názov tabuľky" state tables
             else let result = findTable state.table tables
                 in case result of
                     Nothing -> tableNotFound state tables
-                    Just t -> (keepState state ("Tabuľka " ++ state.table ++ ": " ++ show t), tables)
+                    Just t -> (clearState ("Štruktúra tabuľky " ++ state.table ++ ": " ++ showRep t), tables)
 
 clearState: String -> State
 clearState out =
@@ -77,6 +77,21 @@ missingArguments missing state tables =
 tableNotFound: State -> Tables -> Model
 tableNotFound state tables =
     (keepState state ("Tabuľka " ++ state.table ++ " neexistuje"), tables)
+
+validate: List String -> State -> Bool
+validate list state =
+    let
+        compare key =
+            case key of
+                "table" -> state.table /= ""
+                "key" -> state.key /= ""
+                "value" -> state.value /= ""
+                _ -> False
+    in case list of
+        [] -> True
+        key :: rest ->
+            if compare key == False then False
+            else validate rest state
 
 
 
@@ -96,6 +111,7 @@ view (state, tables) =
         button [onClick NewOrEmpty] [text "Pridať/Vyprázdniť"],
         button [onClick Insert] [text "Vložiť"],
         button [onClick Show] [text "Zobraziť"],
+        button [onClick ShowRep] [text "Zobraziť reprezentáciu"],
         br [] [],
         br [] [],
         div [] [text <| "Dostupné tabuľky: " ++ viewTables tables],
@@ -157,7 +173,20 @@ show table =
                 EmptyNode -> acc ++ ""
                 Node k v lc rc ->
                     acc ++ k ++ ":" ++ v ++ if lc == EmptyNode && rc == EmptyNode then "" else ", "
-    in bstPreorder toStr "" <| Tuple.second table
+    in bstReduce toStr "" <| Tuple.second table
+
+showRep: Table -> String
+showRep (name, values) =
+    let
+        showTree tree =
+            case tree of
+                EmptyNode -> "EmptyNode"
+                Node key value lc rc ->
+                    "Node \"" ++ key ++ "\" \"" ++ value ++ "\" " ++
+                    (if lc == EmptyNode then showTree lc else "(" ++ showTree lc ++ ")") ++ " " ++
+                    (if rc == EmptyNode then showTree rc else "(" ++ showTree rc ++ ")")
+
+    in "(\"" ++ name ++ "\", " ++ showTree values ++ ")" 
 
 
 
@@ -172,10 +201,10 @@ bstInsert key value tree =
             else if key < nKey then Node nKey nVal (bstInsert key value nLC) nRC
             else Node nKey nVal nLC (bstInsert key value nRC)
 
-bstPreorder: (BST String -> b -> b) -> b -> BST String -> b
-bstPreorder fnc acc tree =
+bstReduce: (BST String -> b -> b) -> b -> BST String -> b
+bstReduce fnc acc tree =
     case tree of
         EmptyNode -> fnc EmptyNode acc
         Node key value lc rc ->
-            bstPreorder fnc (bstPreorder fnc (fnc (Node key value lc rc) acc) lc) rc
+            bstReduce fnc (bstReduce fnc (fnc (Node key value lc rc) acc) lc) rc
 
