@@ -1,8 +1,9 @@
 module Zadanie exposing (..)
 
 import Browser
-import Html exposing (..)
-import Html.Attributes exposing (..)
+import List exposing (map, filter)
+import Html exposing (Html, h3, input, div, br, strong, text, button)
+import Html.Attributes exposing (type_, placeholder, value)
 import Html.Events exposing (..)
 
 main =
@@ -24,10 +25,11 @@ type Message =
     SetValue String |
     NewOrEmpty |
     Insert |
-    Show
+    Show |
+    ShowRep
 
 init: Model
-init = (State "" "" "" "", [("foo", Node "a" "42" EmptyNode EmptyNode)])
+init = (clearState "", [("foo", Node "a" "42" EmptyNode EmptyNode)])
 
 update: Message -> Model -> Model
 update message (state, tables) =
@@ -38,23 +40,46 @@ update message (state, tables) =
             ({state | key = k, output = ""}, tables)
         SetValue v ->
             ({state | value = v, output = ""}, tables)
+
         NewOrEmpty ->
-            if state.table == "" then (State "" "" "" "Zadajte názov tabulky", tables)
-            else if (findTable state.table tables) == Nothing then (State "" "" "" ("Vytvorená nová tabuľka: " ++ state.table), newOrEmpty state.table tables)
-            else (State "" "" "" ("Tabuľka " ++ state.table ++ " bola vyprázdnená"), newOrEmpty state.table tables)
+            if state.table == "" then missingArguments "názov tabuľky" state tables
+            else if (findTable state.table tables) == Nothing then (clearState ("Vytvorená nová tabuľka: " ++ state.table), newOrEmpty state.table tables)
+            else (clearState ("Tabuľka " ++ state.table ++ " bola vyprázdnená"), newOrEmpty state.table tables)
         Insert ->
-            if state.table == "" || state.key == "" || state.value == "" then (State "" "" "" "Zadajte názov tabuľky, kľúč a hodnotu", tables)
-            else if (findTable state.table tables) == Nothing then (State state.table state.key state.value ("Tabuľka " ++ state.table ++ " neexistuje"), tables)
-            else (State "" "" "" ("Vložená hodnota '" ++ state.value ++ "' pod kľučom '" ++ state.key ++ "' do tabuľky " ++ state.table), insert state.table state.key state.value tables)
+            if state.table == "" || state.key == "" || state.value == "" then missingArguments "názov tabuľky, kľúč a hodnotu" state tables
+            else if (findTable state.table tables) == Nothing then tableNotFound state tables
+            else (clearState ("Vložená hodnota '" ++ state.value ++ "' pod kľučom '" ++ state.key ++ "' do tabuľky " ++ state.table), insert state.table state.key state.value tables)
         Show ->
-            if state.table == "" then (State "" "" "" "Zadajte názov tabuľky", tables)
-            else
-                let
-                    t = findTable state.table tables
-                in
-                    case t of
-                        Nothing -> (State state.table state.key state.value ("Tabuľka " ++ state.table ++ " neexistuje"), tables)
-                        Just asd -> (State state.table state.key state.value ("Tabuľka " ++ state.table ++ ": " ++ show asd), tables)
+            if state.table == "" then missingArguments "názov tabuľky" state tables
+            else let result = findTable state.table tables
+                in case result of
+                    Nothing -> tableNotFound state tables
+                    Just t -> (keepState state ("Tabuľka " ++ state.table ++ ": " ++ show t), tables)
+        ShowRep ->
+            if state.table == "" then missingArguments "názov tabuľky" state tables
+            else let result = findTable state.table tables
+                in case result of
+                    Nothing -> tableNotFound state tables
+                    Just t -> (keepState state ("Tabuľka " ++ state.table ++ ": " ++ show t), tables)
+
+clearState: String -> State
+clearState out =
+    State "" "" "" out
+
+keepState: State -> String -> State
+keepState state out =
+    State state.table state.key state.value out
+
+missingArguments: String -> State -> Tables -> Model
+missingArguments missing state tables =
+    (keepState state ("Zadajte " ++ missing), tables)
+
+tableNotFound: State -> Tables -> Model
+tableNotFound state tables =
+    (keepState state ("Tabuľka " ++ state.table ++ " neexistuje"), tables)
+
+
+
 
 
 view: Model -> Html Message
@@ -95,24 +120,26 @@ listToString fnc list =
                 [] -> ""
                 first :: rest ->
                     (f first) ++ if rest == [] then "" else ", " ++ lts f rest
-    in
-        "[" ++ lts fnc list ++ "]"
+    in "[" ++ lts fnc list ++ "]"
+
+
+
+
 
 newOrEmpty: String -> Tables -> Tables
 newOrEmpty newName tables =
-    case tables of
-        [] -> [(newName, EmptyNode)]
-        (name, bst) :: rest ->
-            if name == newName then (name, EmptyNode) :: rest
-            else (name, bst) :: newOrEmpty newName rest
+    let
+        f (name, values) =
+            name /= newName
+    in (newName, EmptyNode) :: filter f tables
 
 insert: String -> String -> String -> Tables -> Tables
 insert table key value tables =
-    case tables of
-        [] -> []
-        (name, values) :: rest ->
-            if name == table then (name, (bstInsert key value values)) :: rest
-            else (name, values) :: insert table key value rest
+    let
+        f (name, values) =
+            if name == table then (name, (bstInsert key value values))
+            else (name, values)
+    in map f tables
 
 findTable: String -> Tables -> Maybe Table
 findTable table tables =
@@ -125,13 +152,16 @@ findTable table tables =
 show: Table -> String
 show table =
     let
-        toStr node =
+        toStr node acc =
             case node of
-                EmptyNode -> ""
+                EmptyNode -> acc ++ ""
                 Node k v lc rc ->
-                    k ++ ":" ++ v ++ if lc == EmptyNode && rc == EmptyNode then "" else ", "
-    in
-        bstPreorder (\ n s -> s ++ toStr n) "" <| Tuple.second table
+                    acc ++ k ++ ":" ++ v ++ if lc == EmptyNode && rc == EmptyNode then "" else ", "
+    in bstPreorder toStr "" <| Tuple.second table
+
+
+
+
 
 bstInsert: String -> String -> BST String -> BST String
 bstInsert key value tree =
