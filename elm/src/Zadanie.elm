@@ -15,12 +15,14 @@ type alias Table = (String, BST String)
 type BST a = EmptyNode | Node String String (BST a)(BST a)
 type alias State = {
         table: String,
+        table2: String,
         key: String,
         value: String,
         output: String
     }
 type Message =
     SetTable String |
+    SetTable2 String |
     SetKey String |
     SetValue String |
     NewOrEmpty |
@@ -30,7 +32,9 @@ type Message =
     IsIn |
     Value |
     Remove |
-    Card
+    Card |
+    Dom |
+    Equal
 
 init: Model
 init = (clearState "", [("foo", Node "50" "50" (Node "40" "40" EmptyNode EmptyNode) (Node "60" "60" (Node "55" "55" (Node "54" "54" EmptyNode EmptyNode) (Node "57" "57" (Node "56" "56" EmptyNode EmptyNode) (Node "58" "58" EmptyNode EmptyNode))) EmptyNode))])
@@ -40,6 +44,8 @@ update message (state, tables) =
     case message of
         SetTable t ->
             ({state | table = t, output = ""}, tables)
+        SetTable2 t ->
+            ({state | table2 = t, output = ""}, tables)
         SetKey k ->
             ({state | key = k, output = ""}, tables)
         SetValue v ->
@@ -91,6 +97,23 @@ update message (state, tables) =
                 in case result of
                     Nothing -> tableNotFound state tables
                     Just t -> (clearState ("Počet prvkov tabuľky " ++ state.table ++ " je: " ++ (String.fromInt <| card t)), tables)
+        Dom ->
+            if validate ["table"] state == False then missingArguments "názov tabuľky" state tables
+            else let result = findTable state.table tables
+                in case result of
+                    Nothing -> tableNotFound state tables
+                    Just t -> (clearState ("Zoznam kľúčov tabuľky " ++ state.table ++ " je: " ++ (dom t)), tables)
+        Equal ->
+            if validate ["table", "table2"] state == False then missingArguments "názov prvej aj druhej tabuľky" state tables
+            else let
+                    result = findTable state.table tables
+                    result2 = findTable state.table2 tables
+                in case result of
+                    Nothing -> tableNotFound state tables
+                    Just t ->
+                        case result2 of
+                            Nothing -> tableNotFound state tables
+                            Just t2 -> (clearState ("Tabuľky " ++ state.table ++ " a " ++ state.table2 ++ " sú " ++ (if (equal t t2) then "rovnaké" else "rozdielne")), tables)
 
 
 
@@ -98,11 +121,11 @@ update message (state, tables) =
 
 clearState: String -> State
 clearState out =
-    State "" "" "" out
+    State "" "" "" "" out
 
 keepState: State -> String -> State
 keepState state out =
-    State state.table state.key state.value out
+    State state.table state.table2 state.key state.value out
 
 missingArguments: String -> State -> Tables -> Model
 missingArguments missing state tables =
@@ -118,6 +141,7 @@ validate list state =
         compare key =
             case key of
                 "table" -> state.table /= ""
+                "table2" -> state.table2 /= ""
                 "key" -> state.key /= ""
                 "value" -> state.value /= ""
                 _ -> False
@@ -137,6 +161,8 @@ view (state, tables) =
         h3 [] [text "Zadanie"],
         htmlInput "Názov tabulky" state.table SetTable,
         br [] [],
+        htmlInput "Názov druhej tabulky" state.table2 SetTable2,
+        br [] [],
         htmlInput "Kľúč" state.key SetKey,
         br [] [],
         htmlInput "Hodnota" state.value SetValue,
@@ -150,6 +176,8 @@ view (state, tables) =
         button [onClick Value] [text "Hodnota"],
         button [onClick Remove] [text "Vymazať"],
         button [onClick Card] [text "Počet prvkov"],
+        button [onClick Dom] [text "Zoznam kľúčov"],
+        button [onClick Equal] [text "Ekvivalentnosť"],
         br [] [],
         br [] [],
         div [] [text <| "Dostupné tabuľky: " ++ viewTables tables],
@@ -256,6 +284,21 @@ card (name, tree) =
                 Node _ _ _ _ -> acc + 1
     in bstReduce fnc 0 tree
 
+dom: Table -> String
+dom (name, tree) =
+    let
+        toStr node acc =
+            case node of
+                EmptyNode -> acc
+                Node k v lc rc ->
+                    k :: acc
+    in listToString identity (bstReduce toStr [] tree)
+
+equal: Table -> Table -> Bool
+equal t1 t2 =
+    (show t1) == (show t2)
+
+
 
 
 
@@ -273,7 +316,7 @@ bstReduce fnc acc tree =
     case tree of
         EmptyNode -> fnc EmptyNode acc
         Node key value lc rc ->
-            bstReduce fnc (bstReduce fnc (fnc (Node key value lc rc) acc) lc) rc
+            bstReduce fnc (fnc (Node key value lc rc) (bstReduce fnc acc lc)) rc
 
 bstFind: String -> BST String -> Maybe (BST String)
 bstFind key tree =

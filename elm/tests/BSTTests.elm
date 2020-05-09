@@ -74,7 +74,7 @@ reduceTests =
         test "Normal tree"
             (\_ -> Expect.equal
                 (bstReduce toStr "" (bstFromList [3, 6, 7, 2, 4, 5, 1, 9, 8]))
-                "321645798")
+                "123456789")
     ]
 
 findTests: Test
