@@ -200,10 +200,10 @@ show table =
     let
         toStr node acc =
             case node of
-                EmptyNode -> acc ++ ""
+                EmptyNode -> acc
                 Node k v lc rc ->
-                    acc ++ k ++ ":" ++ v ++ if lc == EmptyNode && rc == EmptyNode then "" else ", "
-    in bstReduce toStr "" <| Tuple.second table
+                    (k ++ ":" ++ v) :: acc
+    in listToString identity (bstReduce toStr [] <| Tuple.second table)
 
 showRep: Table -> String
 showRep (name, values) =
