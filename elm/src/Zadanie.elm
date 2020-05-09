@@ -28,10 +28,11 @@ type Message =
     Show |
     ShowRep |
     IsIn |
-    Value
+    Value |
+    Remove
 
 init: Model
-init = (clearState "", [("foo", Node "a" "1" EmptyNode (Node "d" "2" (Node "c" "3" EmptyNode EmptyNode) EmptyNode))])
+init = (clearState "", [("foo", Node "50" "50" (Node "40" "40" EmptyNode EmptyNode) (Node "60" "60" (Node "55" "55" (Node "54" "54" EmptyNode EmptyNode) (Node "57" "57" (Node "56" "56" EmptyNode EmptyNode) (Node "58" "58" EmptyNode EmptyNode))) EmptyNode))])
 
 update: Message -> Model -> Model
 update message (state, tables) =
@@ -79,6 +80,10 @@ update message (state, tables) =
                         in case v of
                             Nothing -> (clearState ("Kľúč '" ++ state.key ++ "' sa v tabuľke " ++ state.table ++ " nenachádza"), tables)
                             Just val -> (clearState ("Kľúč '" ++ state.key ++ "' má v tabuľke " ++ state.table ++ " hodnotu: " ++ val), tables)
+        Remove ->
+            if validate ["table", "key"] state == False then missingArguments "názov tabuľky, kľúč" state tables
+            else if (findTable state.table tables) == Nothing then tableNotFound state tables
+            else (clearState ("Kľúč '" ++ state.key ++ "' bol z tabuľky " ++ state.table ++ " vymazaný"), remove state.table state.key tables)
 
 
 
@@ -136,6 +141,7 @@ view (state, tables) =
         button [onClick ShowRep] [text "Zobraziť reprezentáciu"],
         button [onClick IsIn] [text "Je v"],
         button [onClick Value] [text "Hodnota"],
+        button [onClick Remove] [text "Vymazať"],
         br [] [],
         br [] [],
         div [] [text <| "Dostupné tabuľky: " ++ viewTables tables],
@@ -225,6 +231,13 @@ valueForKey key (name, values) =
                 EmptyNode -> Nothing
                 Node k v lc rc -> Just v
 
+remove: String -> String -> Tables -> Tables
+remove table key tables =
+    let
+        f (name, values) =
+            if name == table then (name, (bstRemove key values))
+            else (name, values)
+    in map f tables
 
 
 
@@ -253,4 +266,33 @@ bstFind key tree =
             if key == k then Just (Node k v lc rc)
             else if key < k then bstFind key lc
             else bstFind key rc
+
+bstRemove: String -> BST String -> BST String
+bstRemove key tree =
+    let
+        findMin node =
+            case node of
+                EmptyNode -> EmptyNode -- Nikdy nenastane
+                Node k v lc rc ->
+                    if lc == EmptyNode then (Node k v lc rc)
+                    else findMin lc
+    in case tree of
+        EmptyNode -> EmptyNode
+        Node k v lc rc ->
+            if key < k then Node k v (bstRemove key lc) rc
+            else if key > k then Node k v lc (bstRemove key rc)
+            else
+                case lc of
+                    EmptyNode ->
+                        case rc of
+                            EmptyNode -> EmptyNode
+                            Node rk rv rlc rrc -> Node rk rv rlc rrc
+                    Node lk lv llc lrc ->
+                        case rc of
+                            EmptyNode -> Node lk lv llc lrc
+                            Node rk rv rlc rrc ->
+                                let min = findMin (Node rk rv rlc rrc)
+                                in case min of
+                                    EmptyNode -> EmptyNode -- Nikdy nenastane
+                                    Node mk mv mlc mrc -> Node mk mv lc <| bstRemove mk rc
 
