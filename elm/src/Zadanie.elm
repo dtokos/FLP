@@ -29,7 +29,8 @@ type Message =
     ShowRep |
     IsIn |
     Value |
-    Remove
+    Remove |
+    Card
 
 init: Model
 init = (clearState "", [("foo", Node "50" "50" (Node "40" "40" EmptyNode EmptyNode) (Node "60" "60" (Node "55" "55" (Node "54" "54" EmptyNode EmptyNode) (Node "57" "57" (Node "56" "56" EmptyNode EmptyNode) (Node "58" "58" EmptyNode EmptyNode))) EmptyNode))])
@@ -84,6 +85,12 @@ update message (state, tables) =
             if validate ["table", "key"] state == False then missingArguments "názov tabuľky, kľúč" state tables
             else if (findTable state.table tables) == Nothing then tableNotFound state tables
             else (clearState ("Kľúč '" ++ state.key ++ "' bol z tabuľky " ++ state.table ++ " vymazaný"), remove state.table state.key tables)
+        Card ->
+            if validate ["table"] state == False then missingArguments "názov tabuľky" state tables
+            else let result = findTable state.table tables
+                in case result of
+                    Nothing -> tableNotFound state tables
+                    Just t -> (clearState ("Počet prvkov tabuľky " ++ state.table ++ " je: " ++ (String.fromInt <| card t)), tables)
 
 
 
@@ -142,6 +149,7 @@ view (state, tables) =
         button [onClick IsIn] [text "Je v"],
         button [onClick Value] [text "Hodnota"],
         button [onClick Remove] [text "Vymazať"],
+        button [onClick Card] [text "Počet prvkov"],
         br [] [],
         br [] [],
         div [] [text <| "Dostupné tabuľky: " ++ viewTables tables],
@@ -238,6 +246,15 @@ remove table key tables =
             if name == table then (name, (bstRemove key values))
             else (name, values)
     in map f tables
+
+card: Table -> Int
+card (name, tree) =
+    let
+        fnc node acc =
+            case node of
+                EmptyNode -> acc
+                Node _ _ _ _ -> acc + 1
+    in bstReduce fnc 0 tree
 
 
 
