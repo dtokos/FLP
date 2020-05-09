@@ -196,13 +196,7 @@ viewTables tables =
 
 listToString: (a -> String) -> List a -> String
 listToString fnc list =
-    let
-        lts f l =
-            case l of
-                [] -> ""
-                first :: rest ->
-                    (f first) ++ if rest == [] then "" else ", " ++ lts f rest
-    in "[" ++ lts fnc list ++ "]"
+    "[" ++ (String.join ", " (map fnc list)) ++ "]"
 
 
 
@@ -210,56 +204,49 @@ listToString fnc list =
 
 newOrEmpty: String -> Tables -> Tables
 newOrEmpty newName tables =
-    let
-        f (name, values) =
-            name /= newName
-    in (newName, EmptyNode) :: filter f tables
+    (newName, EmptyNode) :: filter (\(name, _) -> name /= newName) tables
 
 insert: String -> String -> String -> Tables -> Tables
 insert table key value tables =
-    let
-        f (name, values) =
-            if name == table then (name, (bstInsert key value values))
-            else (name, values)
-    in map f tables
+    map (\(name, tree) -> if name == table then (name, (bstInsert key value tree)) else (name, tree)) tables
 
 findTable: String -> Tables -> Maybe Table
 findTable table tables =
     case tables of
         [] -> Nothing
-        (name, values) :: rest ->
-            if name == table then Just (name, values)
+        (name, tree) :: rest ->
+            if name == table then Just (name, tree)
             else findTable table rest
 
 show: Table -> String
-show table =
+show (_, tree) =
     let
         toStr node acc =
             case node of
                 EmptyNode -> acc
                 Node k v lc rc ->
                     (k ++ ":" ++ v) :: acc
-    in listToString identity (bstReduce toStr [] <| Tuple.second table)
+    in listToString identity (bstReduce toStr [] tree)
 
 showRep: Table -> String
-showRep (name, values) =
+showRep (name, tree) =
     let
-        showTree tree =
-            case tree of
+        showTree t =
+            case t of
                 EmptyNode -> "EmptyNode"
                 Node key value lc rc ->
                     "Node \"" ++ key ++ "\" \"" ++ value ++ "\" " ++
                     (if lc == EmptyNode then showTree lc else "(" ++ showTree lc ++ ")") ++ " " ++
                     (if rc == EmptyNode then showTree rc else "(" ++ showTree rc ++ ")")
-    in "(\"" ++ name ++ "\", " ++ showTree values ++ ")" 
+    in "(\"" ++ name ++ "\", " ++ showTree tree ++ ")" 
 
 isIn: String -> Table -> Bool
-isIn key (name, values) =
-    bstFind key values /= Nothing
+isIn key (_, tree) =
+    bstFind key tree /= Nothing
 
 valueForKey: String -> Table -> Maybe String
-valueForKey key (name, values) =
-    let n = bstFind key values
+valueForKey key (_, tree) =
+    let n = bstFind key tree
     in case n of
         Nothing -> Nothing
         Just t ->
@@ -269,14 +256,10 @@ valueForKey key (name, values) =
 
 remove: String -> String -> Tables -> Tables
 remove table key tables =
-    let
-        f (name, values) =
-            if name == table then (name, (bstRemove key values))
-            else (name, values)
-    in map f tables
+    map (\(name, tree) -> if name == table then (name, (bstRemove key tree)) else (name, tree)) tables
 
 card: Table -> Int
-card (name, tree) =
+card (_, tree) =
     let
         fnc node acc =
             case node of
@@ -285,7 +268,7 @@ card (name, tree) =
     in bstReduce fnc 0 tree
 
 dom: Table -> String
-dom (name, tree) =
+dom (_, tree) =
     let
         toStr node acc =
             case node of
