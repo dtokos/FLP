@@ -1,5 +1,14 @@
 module BSTTests exposing (..)
 
+-- Dobroslav Tokoš
+-- Testy sú písané pomocou elm-test knižnice (https://www.npmjs.com/package/elm-test).
+-- V mojom projekte nachádzajú v inej zložke ako projekt! K jejich spusteniu je treba mať vytvorený elm projekt (elm init).
+-- Následne treba inicializovať testy (elm-test init). Zrojové súbory musia byť vo zložke src a testy vo zložke tests.
+-- Potom by sa mali dať testy pustiť (elm-test).
+
+-- Teto testy som písal hlavne preto lebo som sa o jednej ráno trápil s binárnym vymazávaním. Kvôli únave som si nebol na 100% istý či som to implementoval správne.
+-- Preto som napísal testy ktoré testujú funkcionalitu binárneho stromu. Keďže sú kľúče stringy tak si treba uvedomiť že: "9" > "53" == True
+
 import Expect exposing (Expectation)
 import Test exposing (..)
 import Zadanie exposing (BST(..), bstInsert, bstReduce, bstFind, bstRemove)
