@@ -17,9 +17,10 @@ menu :-
 	writeln('4 - Vyhladat recepty'),
 	writeln('5 - Zoradit recepty'),
 	writeln('6 - Zistit cenu pre osoby'),
-	writeln('7 - Pridat recept'),
-	writeln('8 - Vymazat vsetky recepty'),
-	writeln('9 - Koniec'),
+	writeln('7 - Recepty podla surovin'),
+	writeln('8 - Pridat recept'),
+	writeln('9 - Vymazat vsetky recepty'),
+	writeln('0 - Koniec'),
 	writeln('----------------------------'),
 	nl.
 
@@ -29,9 +30,10 @@ execute('3') :- printRecipes, !.
 execute('4') :- findRecipes, !.
 execute('5') :- sortRecipes, !.
 execute('6') :- findPriceForPersons, !.
-execute('7') :- addRecipe, !.
-execute('8') :- removeAllRecipes, !.
-execute('9') :- !.
+execute('7') :- findRecipesByIngredients, !.
+execute('8') :- addRecipe, !.
+execute('9') :- removeAllRecipes, !.
+execute('0') :- !.
 execute(_) :- writeln('Neznama akcia').
 
 
@@ -190,6 +192,42 @@ findPriceForPersons :-
 	calculateRecipePrice(Ingredients, Price),
 	TotalPrice = Price * Persons,
 	format('Cena receptu ~w pre ~d osob je ~2f~n', [Name, Persons, TotalPrice]).
+
+
+
+
+
+findRecipesByIngredients :-
+	readIngredientsAndQuantities(Ingredients),
+	findAllRecipes(Recipes),
+	include(filterByIngredientsAndQuantities(Ingredients), Recipes, FilteredRecipes),
+	printRecipeList(FilteredRecipes).
+
+readIngredientsAndQuantities([Ingredient|Rest]) :-
+	write('Chcete pridat dalsiu ingredienciu (0 = nie): '),
+	readAtom(Choice),
+	Choice \= '0',
+	readIngredientAndQuantity(Ingredient),
+	readIngredientsAndQuantities(Rest).
+readIngredientsAndQuantities([]).
+
+readIngredientAndQuantity(Ingredient) :-
+	write('Zadajte nazov ingrediencie: '),
+	readAtom(Name),
+	write('Zadajte pocet: '),
+	readNumber(Quantity),
+	Ingredient = [Name, Quantity].
+
+filterByIngredientsAndQuantities(AvailableIngredients, recipe(_, Ingredients, _)) :-
+	forall(member(ingredient(Name, Quantity, _), Ingredients), compareWithAvailableIngredients(Name, Quantity, AvailableIngredients)).
+
+compareWithAvailableIngredients(Name, Quantity, [[Name, AvailableQuantity]|Rest]) :-
+	(AvailableQuantity >= Quantity, !)
+	;
+	compareWithAvailableIngredients(Name, Quantity, Rest).
+
+compareWithAvailableIngredients(_, _, []) :-
+	fail.
 
 
 
