@@ -15,7 +15,8 @@ menu :-
 	writeln('2 - Zapis do suboru'),
 	writeln('3 - Vypis receptov'),
 	writeln('4 - Vyhladat recepty'),
-	writeln('5 - Pridat recept'),
+	writeln('5 - Zoradit recepty'),
+	writeln('6 - Pridat recept'),
 	writeln('8 - Vymazat vsetky recepty'),
 	writeln('9 - Koniec'),
 	writeln('----------------------------'),
@@ -25,7 +26,8 @@ execute('1') :- readFromFile, !.
 execute('2') :- writeToFile, !.
 execute('3') :- printRecipes, !.
 execute('4') :- findRecipes, !.
-execute('5') :- addRecipe, !.
+execute('5') :- sortRecipes, !.
+execute('6') :- addRecipe, !.
 execute('8') :- removeAllRecipes, !.
 execute('9') :- !.
 execute(_) :- writeln('Neznama akcia').
@@ -77,7 +79,7 @@ writeRecipeFile(_) :-
 
 
 printRecipes :-
-	findall(recipe(Name, Ingredients, CookingTime), recipe(Name, Ingredients, CookingTime), Recipes),
+	findAllRecipes(Recipes),
 	printRecipeList(Recipes),
 	%recipe(Name, Ingredients, time(Hours, Minutes)), % TODO: Implement
 	%format('Recept: ~w~nCas pripravy ~|~`0t~d~2+:~|~`0t~d~2+~nIngrediencie:~n', [Name, Hours, Minutes]),
@@ -87,6 +89,9 @@ printRecipes :-
 	%nl,
 	fail.
 printRecipes.
+
+findAllRecipes(Recipes) :-
+	findall(recipe(Name, Ingredients, CookingTime), recipe(Name, Ingredients, CookingTime), Recipes).
 
 printRecipeList(Recipes) :-
 	forall(
@@ -119,6 +124,7 @@ findRecipes :-
 	readAtom(Name),
 	readIngredientsList(IngredientsList),
 	findall(recipe(Name, Ingredients, CookingTime), recipe(Name, Ingredients, CookingTime), Recipes),
+	%findAllRecipes(Recipes),
 	include(filterByIngredients(IngredientsList), Recipes, FilteredRecipes),
 	printRecipeList(FilteredRecipes).
 %filterByIngredients([], _).
@@ -135,6 +141,41 @@ readIngredientsList([]).
 
 filterByIngredients(Names, recipe(_, Ingredients, _)) :-
 	forall(member(Name, Names), member(ingredient(Name, _, _), Ingredients)).
+
+
+
+
+sortRecipes :-
+	sortMenu,
+	readAtom(Choice),
+	sortRecipesChoice(Choice).
+
+sortMenu :-
+	writeln('1 - Zoradit podla mena'),
+	writeln('2 - Zoradit podla ceny'),
+	writeln('3 - Zoradit podla casu pripravy').
+
+sortRecipesChoice('1') :- sortRecipesBy(sortByRecipeName).
+sortRecipesChoice('2') :- sortRecipesBy(sortByRecipePrice).
+sortRecipesChoice('3') :- sortRecipesBy(sortByRecipeCookingTime).
+sortRecipesChoice(_) :- writeln('Neznama akcia').
+
+sortByRecipeName(recipe(Name, _, _), Name).
+sortByRecipePrice(recipe(_, Ingredients, _), Price) :-
+	calculateRecipePrice(Ingredients, Price).
+sortByRecipeCookingTime(recipe(_, _, time(Hours, Minutes)), Total) :-
+	Total is Hours * 60 + Minutes.
+
+sortRecipesBy(Lambda) :-
+	findAllRecipes(Recipes),
+	maplist(prefixAtomWithKey(Lambda), Recipes, KeyedRecipes),
+	keysort(KeyedRecipes, SortedRecipes),
+	removeAllRecipes,
+	forall(member(_-Recipe, SortedRecipes), assertz(Recipe)).
+
+prefixAtomWithKey(Lambda, Input, Output) :-
+	call(Lambda, Input, Key),
+	Output = Key-Input.
 
 
 
@@ -186,6 +227,10 @@ removeAllRecipes :-
 
 
 
+calculateRecipePrice(Ingredients, Price) :-
+	foldl(calculateRecipePriceSum, Ingredients, 0, Price).
+calculateRecipePriceSum(ingredient(_, _, Price), Acc, NextAcc) :-
+	NextAcc is Acc + Price.
 
 
 readAtom(Atom) :-
