@@ -1,14 +1,27 @@
+% Dobroslav Tokoš
+% Chcel som si odskúšať funkcionálne programovať v Prologu a preto nie je celková dátová štruktúra najoptimálnejšia.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Definície
+
+% Dynamická definícia predikátu receptu
 :- dynamic recipe/3.
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Main
+
+% Hlavný cyklus programu
 main :-
 	repeat,
 	menu,
 	readAtom(Choice),
 	execute(Choice),
-	Choice == '9',
+	Choice == '0',
 	writeln('Koniec'),
 	!.
 
+% Hlavné menu programu
 menu :-
 	nl,
 	writeln('1 - Nacitaj zo suboru'),
@@ -24,6 +37,7 @@ menu :-
 	writeln('----------------------------'),
 	nl.
 
+% Spúšťa jednotlivé akcie
 execute('1') :- readFromFile, !.
 execute('2') :- writeToFile, !.
 execute('3') :- printRecipes, !.
@@ -40,14 +54,18 @@ execute(_) :- writeln('Neznama akcia').
 
 
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Akcie
 
+% Akcia ktorá načíta databázu zo súboru
 readFromFile :-
 	write('Zadajte nazov suboru: '),
 	readAtom(Name),
 	readRecipeFile(Name).
 
+% Načíta recepty zo zvoleného súboru
 readRecipeFile(Name) :-
-	removeAllRecipes,
+	removeAllRecipesFromDB,
 	see(Name),
 	repeat,
 	read(Term),
@@ -61,18 +79,18 @@ readRecipeFile(Name) :-
 
 
 
-
+% Akcia ktora zapíše databázu do súboru
 writeToFile :-
 	write('Zadajte nazov suboru: '),
 	readAtom(Name),
 	writeRecipeFile(Name).
 
+% Zapíše recepty do zvoleného súboru
 writeRecipeFile(Name) :-
 	tell(Name),
 	recipe(RecipeName, Ingredients, CookingTime),
 	writeq(recipe(RecipeName, Ingredients, CookingTime)),
-	write('.'),
-	nl,
+	writeln('.'),
 	fail.
 writeRecipeFile(_) :-
 	told.
@@ -81,22 +99,17 @@ writeRecipeFile(_) :-
 
 
 
-
+% Akcia ktorá vypíše všetky recepty
 printRecipes :-
 	findAllRecipes(Recipes),
-	printRecipeList(Recipes),
-	%recipe(Name, Ingredients, time(Hours, Minutes)), % TODO: Implement
-	%format('Recept: ~w~nCas pripravy ~|~`0t~d~2+:~|~`0t~d~2+~nIngrediencie:~n', [Name, Hours, Minutes]),
-	%%writeln('Ingrediencie: '),
-	%printIngredients(Ingredients),
-	%%format('Cas pripravy: ~w~n~n', [CookingTime]),
-	%nl,
-	fail.
-printRecipes.
+	writeln('Vsetky dostupne recepty:'),
+	printRecipeList(Recipes).
 
+% Načíta všetky recepty do zoznamu
 findAllRecipes(Recipes) :-
 	findall(recipe(Name, Ingredients, CookingTime), recipe(Name, Ingredients, CookingTime), Recipes).
 
+% Vypíše recepty zo zoznamu
 printRecipeList(Recipes) :-
 	forall(
 		member(recipe(Name, Ingredients, time(Hours, Minutes)), Recipes),
@@ -107,35 +120,28 @@ printRecipeList(Recipes) :-
 		)
 	).
 
+% Vypíše zoznam ingrediencií
 printIngredients(Ingredients) :-
 	forall(
 		member(ingredient(Name, Quantity, Price), Ingredients),
 		format('~t~4|~w ~wx ~2f~n', [Name, Quantity, Price])
 	).
-%printIngredients([Ingredient|Rest]) :-
-%	printIngredient(Ingredient),
-%	printIngredients(Rest).
-%printIngredients([]).
-%
-%printIngredient(ingredient(Name, Quantity, Price)) :-
-%	format('~t~4|~w ~wx ~2f~n', [Name, Quantity, Price]).
 
 
 
 
+
+% Akcia ktorá vyhľadá recepty podľa názvu a ingrediencií
 findRecipes :-
 	write('Zadajte nazov receptu: '),
 	readAtom(Name),
 	readIngredientsList(IngredientsList),
 	findall(recipe(Name, Ingredients, CookingTime), recipe(Name, Ingredients, CookingTime), Recipes),
-	%findAllRecipes(Recipes),
 	include(filterByIngredients(IngredientsList), Recipes, FilteredRecipes),
+	writeln('Recepty splnajuce kriteria:'),
 	printRecipeList(FilteredRecipes).
-%filterByIngredients([], _).
-%filterByIngredients(_, recipe(_, [], _)).
-%filterByIngredients(Names, recipe(_, [ingredient(Name, _, _)|Rest], _)) :-
-%	member(Name, Names),
-%	filterByIngredients(Names, Rest).
+
+% Načíta zoznam ingrediencií podľa ktorého sa bude filtrovať
 readIngredientsList([Name|Rest]) :-
 	write('Zadajte nazov ingrediencie: '),
 	readAtom(Name),
@@ -143,66 +149,97 @@ readIngredientsList([Name|Rest]) :-
 	readIngredientsList(Rest).
 readIngredientsList([]).
 
+% Určí či recept obsahuje všetky potrebné ingrediencie
 filterByIngredients(Names, recipe(_, Ingredients, _)) :-
 	forall(member(Name, Names), member(ingredient(Name, _, _), Ingredients)).
 
 
 
 
+
+% Akcia ktorá zoradí recepty
 sortRecipes :-
 	sortMenu,
 	readAtom(Choice),
 	sortRecipesChoice(Choice).
 
+% Menu s možnosťami zoradenia
 sortMenu :-
 	writeln('1 - Zoradit podla mena'),
 	writeln('2 - Zoradit podla ceny'),
 	writeln('3 - Zoradit podla casu pripravy').
 
-sortRecipesChoice('1') :- sortRecipesBy(sortByRecipeName).
-sortRecipesChoice('2') :- sortRecipesBy(sortByRecipePrice).
-sortRecipesChoice('3') :- sortRecipesBy(sortByRecipeCookingTime).
-sortRecipesChoice(_) :- writeln('Neznama akcia').
+% Spúšťa jednotlivé akcie na zoradenie
+sortRecipesChoice('1') :- 
+	writeln('Recepty boli zoradene podla mena'),
+	sortRecipesBy(sortByRecipeName).
+sortRecipesChoice('2') :-
+	writeln('Recepty boli zoradene podla ceny'),
+	sortRecipesBy(sortByRecipePrice).
+sortRecipesChoice('3') :-
+	writeln('Recepty boli zoradene podla casu pripravy'),
+	sortRecipesBy(sortByRecipeCookingTime).
+sortRecipesChoice(_) :-
+	writeln('Neznama zoradovacia akcia').
 
+% Funkcie vracajúce atribúty podľa ktorých sa majú recepty zoradiť
 sortByRecipeName(recipe(Name, _, _), Name).
 sortByRecipePrice(recipe(_, Ingredients, _), Price) :-
 	calculateRecipePrice(Ingredients, Price).
 sortByRecipeCookingTime(recipe(_, _, time(Hours, Minutes)), Total) :-
 	Total is Hours * 60 + Minutes.
 
+% Zoradí recepty podľa zvolenej možnosti
 sortRecipesBy(Lambda) :-
 	findAllRecipes(Recipes),
 	maplist(prefixAtomWithKey(Lambda), Recipes, KeyedRecipes),
 	keysort(KeyedRecipes, SortedRecipes),
-	removeAllRecipes,
+	removeAllRecipesFromDB,
 	forall(member(_-Recipe, SortedRecipes), assertz(Recipe)).
 
+% Pridá pred atom hodnotu podľa ktorej sa recepty zoradia
 prefixAtomWithKey(Lambda, Input, Output) :-
 	call(Lambda, Input, Key),
 	Output = Key-Input.
 
 
 
+
+
+% Akcia ktorá vypíše cenu receptu pre zvolený počet osôb
 findPriceForPersons :-
 	write('Zadajte nazov receptu: '),
 	readAtom(Name),
 	write('Zadajte pocet osob: '),
-	readNumber(Persons),
+	readPersons(Persons),
 	recipe(Name, Ingredients, _),
 	calculateRecipePrice(Ingredients, Price),
 	TotalPrice = Price * Persons,
 	format('Cena receptu ~w pre ~d osob je ~2f~n', [Name, Persons, TotalPrice]).
 
+% Načíta počet osôb
+readPersons(Persons) :-
+	readNumber(Input),
+	integer(Input),
+	Input > 0,
+	Persons = Input.
+readPersons(Time) :-
+	write('Musite zadat cele cislo vacsie ako nula: '),
+	readPersons(Time).
 
 
 
 
+
+% Akcia ktorá nájde recepety podľa dostupných surovín
 findRecipesByIngredients :-
 	readIngredientsAndQuantities(Ingredients),
 	findAllRecipes(Recipes),
 	include(filterByIngredientsAndQuantities(Ingredients), Recipes, FilteredRecipes),
+	writeln('Recepty podla dostupnych surovin:'),
 	printRecipeList(FilteredRecipes).
 
+% Načíta dostupné suroviny
 readIngredientsAndQuantities([Ingredient|Rest]) :-
 	write('Chcete pridat dalsiu ingredienciu (0 = nie): '),
 	readAtom(Choice),
@@ -211,6 +248,7 @@ readIngredientsAndQuantities([Ingredient|Rest]) :-
 	readIngredientsAndQuantities(Rest).
 readIngredientsAndQuantities([]).
 
+% Načíta jednu dostupnú surovinu
 readIngredientAndQuantity(Ingredient) :-
 	write('Zadajte nazov ingrediencie: '),
 	readAtom(Name),
@@ -218,20 +256,23 @@ readIngredientAndQuantity(Ingredient) :-
 	readNumber(Quantity),
 	Ingredient = [Name, Quantity].
 
+% Určí či máme na recept všetky potrebné suroviny
 filterByIngredientsAndQuantities(AvailableIngredients, recipe(_, Ingredients, _)) :-
 	forall(member(ingredient(Name, Quantity, _), Ingredients), compareWithAvailableIngredients(Name, Quantity, AvailableIngredients)).
 
+% Určí či máme konkrétnu surovinu
 compareWithAvailableIngredients(Name, Quantity, [[Name, AvailableQuantity]|Rest]) :-
 	(AvailableQuantity >= Quantity, !)
 	;
 	compareWithAvailableIngredients(Name, Quantity, Rest).
-
 compareWithAvailableIngredients(_, _, []) :-
 	fail.
 
 
 
 
+
+% Akcia ktorá pridá recept
 addRecipe :-
 	write('Zadajte nazov receptu: '),
 	readAtom(Name),
@@ -241,6 +282,7 @@ addRecipe :-
 	readIngredients(Ingredients),
 	assertz(recipe(Name, Ingredients, CookingTime)).
 
+% Načíta čas prípravy vo formáte HH:mm
 readCookingTime(Time) :-
 	readString(TimeAtom),
 	term_string(Hours:Minutes, TimeAtom),
@@ -253,6 +295,7 @@ readCookingTime(Time) :-
 	write('Musite zadat cas vo formate HH:mm: '),
 	readCookingTime(Time).
 
+% Načíta zoznam ingrediencií
 readIngredients([Ingredient|Rest]) :-
 	write('Chcete pridat dalsiu ingredienciu (0 = nie): '),
 	readAtom(Choice),
@@ -261,6 +304,7 @@ readIngredients([Ingredient|Rest]) :-
 	readIngredients(Rest).
 readIngredients([]).
 
+% Načíta jednu ingredienciu
 readIngredient(Ingredient) :-
 	write('Zadajte nazov ingrediencie: '),
 	readAtom(Name),
@@ -274,21 +318,34 @@ readIngredient(Ingredient) :-
 
 
 
+% Akcia ktorá zmaže všetky recepty
 removeAllRecipes :-
+	writeln('Vsetky recepty boli zmazane'),
+	removeAllRecipesFromDB.
+
+% Zmaže všetky recepty
+removeAllRecipesFromDB :-
 	retractall(recipe(_, _, _)).
 
 
 
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Pomocné funkcie
+
+% Pomocná funkcia na výpočet ceny receptu
 calculateRecipePrice(Ingredients, Price) :-
 	foldl(calculateRecipePriceSum, Ingredients, 0, Price).
 calculateRecipePriceSum(ingredient(_, _, Price), Acc, NextAcc) :-
 	NextAcc is Acc + Price.
 
-
+% Pomocná funkcia ktorá načíta vstup ako atóm
 readAtom(Atom) :-
 	readString(String),
 	atom_string(Atom, String).
 
+% Pomocná funkcia ktorá načíta vstup ako číslo
 readNumber(Number) :-
 	readString(Str),
 	number_string(Number, Str),
@@ -297,14 +354,7 @@ readNumber(Number) :-
 	write('Musite zadat cislo: '),
 	readNumber(Number).
 
-%readString(String) :-
-%	read_line(String).
-%readString(String) :-
-%	read_string(Temp),
-%	string_term(Temp, String).
-%readString(String) :-
-%	current_input(Input),
-%	read_string(Input, '\n', '\r\t ', ' ', String).
+% Pomocná funkcia ktorá načíta vstup ako string
 readString(String) :-
 	current_input(Input),
 	read_line_to_codes(Input, Codes),
