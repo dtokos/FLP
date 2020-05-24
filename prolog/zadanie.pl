@@ -16,7 +16,8 @@ menu :-
 	writeln('3 - Vypis receptov'),
 	writeln('4 - Vyhladat recepty'),
 	writeln('5 - Zoradit recepty'),
-	writeln('6 - Pridat recept'),
+	writeln('6 - Zistit cenu pre osoby'),
+	writeln('7 - Pridat recept'),
 	writeln('8 - Vymazat vsetky recepty'),
 	writeln('9 - Koniec'),
 	writeln('----------------------------'),
@@ -27,7 +28,8 @@ execute('2') :- writeToFile, !.
 execute('3') :- printRecipes, !.
 execute('4') :- findRecipes, !.
 execute('5') :- sortRecipes, !.
-execute('6') :- addRecipe, !.
+execute('6') :- findPriceForPersons, !.
+execute('7') :- addRecipe, !.
 execute('8') :- removeAllRecipes, !.
 execute('9') :- !.
 execute(_) :- writeln('Neznama akcia').
@@ -176,6 +178,18 @@ sortRecipesBy(Lambda) :-
 prefixAtomWithKey(Lambda, Input, Output) :-
 	call(Lambda, Input, Key),
 	Output = Key-Input.
+
+
+
+findPriceForPersons :-
+	write('Zadajte nazov receptu: '),
+	readAtom(Name),
+	write('Zadajte pocet osob: '),
+	readNumber(Persons),
+	recipe(Name, Ingredients, _),
+	calculateRecipePrice(Ingredients, Price),
+	TotalPrice = Price * Persons,
+	format('Cena receptu ~w pre ~d osob je ~2f~n', [Name, Persons, TotalPrice]).
 
 
 
